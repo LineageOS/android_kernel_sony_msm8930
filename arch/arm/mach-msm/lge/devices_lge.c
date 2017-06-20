@@ -224,7 +224,7 @@ void __init lge_add_ramconsole_devices(void)
 }
 #endif /* CONFIG_ANDROID_RAM_CONSOLE */
 
-#ifdef CONFIG_LGE_CRASH_HANDLER
+#ifdef CONFIG_LGE_HANDLE_PANIC
 static struct platform_device panic_handler_device = {
 	.name = "panic-handler",
 	.id = -1,
@@ -234,7 +234,7 @@ void __init lge_add_panic_handler_devices(void)
 {
 	platform_device_register(&panic_handler_device);
 }
-#endif /* CONFIG_LGE_CRASH_HANDLER */
+#endif /* CONFIG_LGE_HANDLE_PANIC */
 
 #ifdef CONFIG_LGE_QFPROM_INTERFACE
 static struct platform_device qfprom_device = {
