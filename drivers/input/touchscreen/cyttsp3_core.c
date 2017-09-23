@@ -33,6 +33,7 @@
 
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -1651,8 +1652,7 @@ static int _cyttsp_xy_worker(struct cyttsp *ts)
 					cur_trk[id].abs[CY_ABS_W_OST]);
 
 			num_sent++;
-			input_mt_sync(ts->input);
-			
+			input_mt_slot(ts->input, id);
 			ts->prv_trk[id] = cur_trk[id];
 			ts->prv_trk[id].abs[CY_ABS_ID_OST] = t;
 			cyttsp_dbg(ts, CY_DBG_LVL_1,
@@ -1708,7 +1708,7 @@ static int _cyttsp_xy_worker(struct cyttsp *ts)
 				input_report_abs(ts->input, signal, CY_NTCH);
 
 			num_sent++;
-			input_mt_sync(ts->input);
+			input_mt_slot(ts->input, id);
 
 			ts->prv_trk[id].tch = CY_NTCH;
 			cyttsp_dbg(ts, CY_DBG_LVL_1,
@@ -1725,7 +1725,9 @@ static int _cyttsp_xy_worker(struct cyttsp *ts)
 
 	if (num_sent == 0) {
 		/* in case of 0-touch; all liftoff; Gingerbread+ */
-		input_mt_sync(ts->input);
+		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
+	} else {
+		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 	}
 
 	input_sync(ts->input);
@@ -3954,7 +3956,7 @@ static void _cyttsp_queue_startup(struct cyttsp *ts, bool was_suspended)
 			if (signal != CY_IGNORE_VALUE)
 				input_report_abs(ts->input, signal, CY_NTCH);
 			num_sent++;
-			input_mt_sync(ts->input);
+			input_mt_slot(ts->input, id);
 			ts->prv_trk[id].tch = CY_NTCH;
 			cyttsp_dbg(ts, CY_DBG_LVL_3,
 				"%s: ID:%3d  X:%3d  Y:%3d  "
@@ -3969,9 +3971,10 @@ static void _cyttsp_queue_startup(struct cyttsp *ts, bool was_suspended)
 	}
 	if (num_sent == 0) {
 		/* in case of 0-touch; all liftoff; Gingerbread+ */
-		input_mt_sync(ts->input);
+		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, false);
+	} else {
+		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 	}
-	input_sync(ts->input);
 	memset(ts->prv_trk, CY_NTCH, sizeof(ts->prv_trk));
 	ts->was_suspended = was_suspended;
 	queue_work(ts->cyttsp_wq, &ts->cyttsp_resume_startup_work);
@@ -4920,6 +4923,8 @@ void *cyttsp_core_init(struct cyttsp_bus_ops *bus_ops,
 	_cyttsp_init_tch_map(ts);
 	memset(ts->prv_trk, CY_NTCH, sizeof(ts->prv_trk));
 
+	input_mt_init_slots(ts->input, CY_NUM_TCH_ID);
+ 	input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
 	__set_bit(EV_ABS, input_device->evbit);
 	set_bit(INPUT_PROP_DIRECT, input_device->propbit); 
 	for (i = 0; i < (ts->platform_data->frmwrk->size / CY_NUM_ABS_VAL);
@@ -4971,6 +4976,7 @@ void *cyttsp_core_init(struct cyttsp_bus_ops *bus_ops,
 				(CY_ABS_X_OST * CY_NUM_ABS_SET) + CY_FLAT_OST]);
 	}
 
+	input_set_abs_params(ts->input, ABS_MT_TOOL_TYPE, 0, MT_TOOL_FINGER, 0, 0);
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35))
 	input_set_events_per_packet(input_device, 6 * CY_NUM_TCH_ID);
 #endif
